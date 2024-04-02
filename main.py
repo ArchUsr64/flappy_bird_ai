@@ -20,7 +20,10 @@ COLOR_BLUE = (0, 0, 255)
 GRAVITY: float = -0.001
 TERMINAL_VELOCITY: float = 0.05
 JUMP_VELCOITY: float = 0.015
-FPS: float = 60
+OBSTACLE_SPEED: float = 0.002
+OBSTACLE_DENSITY: int = 5
+BALL_RADIUS: float = 0.04
+FPS: int = 60
 
 def lerp(x, min_x, max_x, min_out, max_out):
     x -= min_x
@@ -45,7 +48,7 @@ class Obstacle:
         pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, 0), (pos_x, top))
         pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, bottom), (pos_x, DISPLAY.get_height()))
     def random():
-        return Obstacle(random.uniform(0.4, 0.8), random.uniform(0.2, 0.4))
+        return Obstacle(random.uniform(0.1, 0.6), random.uniform(0.15, 0.35))
 
 class Game:
     def __init__(self):
@@ -53,21 +56,35 @@ class Game:
         self.pos: float = 0.8
         self.tick_count: int = 0
         self.velocity: float = 0
-        self.dead = False
+        self.dead: bool = False
+        self.obstacles: [Obstacle] = [Obstacle.random() for _ in range(OBSTACLE_DENSITY)]
+        obstacle_start_position = random.uniform(0.8, 1.2)
+        self.obstacle_positions = [obstacle_start_position + i / OBSTACLE_DENSITY for i in range(0, OBSTACLE_DENSITY + 1)]
     def tick(self):
+        # Obstacle generation
+        for i in range(len(self.obstacle_positions)):
+            self.obstacle_positions[i] -= OBSTACLE_SPEED
+        for i in range(len(self.obstacle_positions)):
+            if self.obstacle_positions[i] <= 0:
+                self.obstacle_positions.pop(i)
+                self.obstacles.pop(i)
+                self.obstacles.append(Obstacle.random())
+                self.obstacle_positions.append(1 + 1 / OBSTACLE_DENSITY)
+        # Physics
         self.pos += self.velocity
         if self.pos <= 0:
             self.pos = 0
             self.dead = True
         self.velocity += GRAVITY
         self.velocity = restrict(self.velocity, -TERMINAL_VELOCITY, TERMINAL_VELOCITY)
+
         self.tick_count += 1
     def jump(self):
         self.velocity = JUMP_VELCOITY
     def render(self):
-        pygame.draw.circle(DISPLAY, COLOR_RED, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), 5)
-        obstacle = Obstacle.random()
-        obstacle.render(0.7)
+        for i, obstacle in enumerate(self.obstacles):
+            obstacle.render(self.obstacle_positions[i])
+        pygame.draw.circle(DISPLAY, COLOR_RED, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), lerp(BALL_RADIUS, 0, 1, 0, DISPLAY.get_width()))
 
 running = True
 bird = Game()
