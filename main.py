@@ -45,8 +45,9 @@ class Obstacle:
         pos_x = lerp(pos_x, 0, 1, 0, DISPLAY.get_width())
         top = lerp(self.top, 0, 1, DISPLAY.get_height(), 0)
         bottom = lerp(self.bottom, 0, 1, DISPLAY.get_height(), 0)
-        pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, 0), (pos_x, top))
-        pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, bottom), (pos_x, DISPLAY.get_height()))
+        line_width = int(lerp(BALL_RADIUS, 0, 1, 0, DISPLAY.get_width()))
+        pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, 0), (pos_x, top), line_width)
+        pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, bottom), (pos_x, DISPLAY.get_height()), line_width)
     def random():
         return Obstacle(random.uniform(0.1, 0.6), random.uniform(0.15, 0.35))
     def collision(self, pos) -> bool:
@@ -107,8 +108,8 @@ while running:
     if not bird.dead:
         bird.tick()
     else:
-        pygame.draw.line(DISPLAY, COLOR_RED, (0, 0), (DISPLAY.get_width(), DISPLAY.get_height()))
-        pygame.draw.line(DISPLAY, COLOR_RED, (DISPLAY.get_width(), 0), (0, DISPLAY.get_height()))
+        pygame.draw.line(DISPLAY, COLOR_RED, (0, 0), (DISPLAY.get_width(), DISPLAY.get_height()), DISPLAY.get_width() // 100)
+        pygame.draw.line(DISPLAY, COLOR_RED, (DISPLAY.get_width(), 0), (0, DISPLAY.get_height()), DISPLAY.get_width() // 100)
     pygame.display.update()
     pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
 
