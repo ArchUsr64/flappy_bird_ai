@@ -4,8 +4,8 @@ import random
 random.seed(0)
 
 # Disables logs leaking from pygame
-sys.stdout = sys.__stdin__
-sys.stderr = sys.__stdin__
+sys.stdout = None
+sys.stderr = None
 import pygame
 sys.stdout = sys.__stdout__
 sys.stderr = sys.__stderr__
