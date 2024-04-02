@@ -1,4 +1,7 @@
 import sys
+import random
+
+random.seed(0)
 
 # Disables logs leaking from pygame
 sys.stdout = sys.__stdin__
@@ -8,9 +11,11 @@ sys.stdout = sys.__stdout__
 sys.stderr = sys.__stderr__
 
 pygame.init()
+
 DISPLAY = pygame.display.set_mode((640, 480), vsync = 1)
 COLOR_WHITE = (255, 255, 255)
 COLOR_RED = (255, 0, 0)
+COLOR_BLUE = (0, 0, 255)
 
 GRAVITY: float = -0.001
 TERMINAL_VELOCITY: float = 0.05
@@ -29,11 +34,24 @@ def restrict(value, range_min, range_max):
     value = min(value, range_max)
     return value
 
+class Obstacle:
+    def __init__(self, height, gap):
+        self.top = height + gap
+        self.bottom = height
+    def render(self, pos_x):
+        pos_x = lerp(pos_x, 0, 1, 0, DISPLAY.get_width())
+        top = lerp(self.top, 0, 1, DISPLAY.get_height(), 0)
+        bottom = lerp(self.bottom, 0, 1, DISPLAY.get_height(), 0)
+        pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, 0), (pos_x, top))
+        pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, bottom), (pos_x, DISPLAY.get_height()))
+    def random():
+        return Obstacle(random.uniform(0.4, 0.8), random.uniform(0.2, 0.4))
+
 class Game:
     def __init__(self):
         # Scales form 0 to 1
         self.pos: float = 0.8
-        self.progress: float = 0
+        self.tick_count: int = 0
         self.velocity: float = 0
         self.dead = False
     def tick(self):
@@ -43,11 +61,13 @@ class Game:
             self.dead = True
         self.velocity += GRAVITY
         self.velocity = restrict(self.velocity, -TERMINAL_VELOCITY, TERMINAL_VELOCITY)
-        self.progress += 0.1
+        self.tick_count += 1
     def jump(self):
         self.velocity = JUMP_VELCOITY
     def render(self):
         pygame.draw.circle(DISPLAY, COLOR_RED, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), 5)
+        obstacle = Obstacle.random()
+        obstacle.render(0.7)
 
 running = True
 bird = Game()
