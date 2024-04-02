@@ -22,7 +22,7 @@ TERMINAL_VELOCITY: float = 0.05
 JUMP_VELCOITY: float = 0.015
 OBSTACLE_SPEED: float = 0.002
 OBSTACLE_DENSITY: int = 5
-BALL_RADIUS: float = 0.04
+BALL_RADIUS: float = 0.01
 FPS: int = 60
 
 def lerp(x, min_x, max_x, min_out, max_out):
@@ -49,6 +49,8 @@ class Obstacle:
         pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, bottom), (pos_x, DISPLAY.get_height()))
     def random():
         return Obstacle(random.uniform(0.1, 0.6), random.uniform(0.15, 0.35))
+    def collision(self, pos) -> bool:
+        return pos >= self.top or pos <= self.bottom
 
 class Game:
     def __init__(self):
@@ -77,7 +79,12 @@ class Game:
             self.dead = True
         self.velocity += GRAVITY
         self.velocity = restrict(self.velocity, -TERMINAL_VELOCITY, TERMINAL_VELOCITY)
-
+        # Collision
+        for i, obstacle in enumerate(self.obstacles):
+            obstacle_pos = self.obstacle_positions[i]
+            if obstacle_pos >= 0.5 - BALL_RADIUS and obstacle_pos <= 0.5 + BALL_RADIUS :
+                if obstacle.collision(self.pos):
+                    self.dead = True
         self.tick_count += 1
     def jump(self):
         self.velocity = JUMP_VELCOITY
