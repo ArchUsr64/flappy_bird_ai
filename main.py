@@ -93,6 +93,8 @@ class Obstacle:
         line_width = int(lerp(BALL_RADIUS, 0, 1, 0, DISPLAY.get_width()))
         pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, 0), (pos_x, top), line_width)
         pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, bottom), (pos_x, DISPLAY.get_height()), line_width)
+    def mid(self):
+        return (self.top + self.bottom) / 2
     def random():
         return Obstacle(random.uniform(0.1, 0.6), random.uniform(0.15, 0.35))
     def collision(self, pos) -> bool:
@@ -134,6 +136,11 @@ class Game:
         self.tick_count += 1
     def jump(self):
         self.velocity = JUMP_VELCOITY
+    def next_obstacle_coords(self):
+        index = OBSTACLE_DENSITY // 2
+        while self.obstacle_positions[index] <= 0.5:
+            index += 1
+        return [self.obstacle_positions[index] - 0.5, self.obstacles[index].mid()]
     def render(self):
         for i, obstacle in enumerate(self.obstacles):
             obstacle.render(self.obstacle_positions[i])
