@@ -1,5 +1,6 @@
 import sys
 import random
+import math
 
 random.seed(0)
 
@@ -9,6 +10,50 @@ sys.stderr = None
 import pygame
 sys.stdout = sys.__stdout__
 sys.stderr = sys.__stderr__
+
+class Matrix:
+    def __init__(self, data: [[int]]):
+        self.row_count = len(data)
+        self.col_count = len(data[0])
+        self.data = data
+    @classmethod
+    def from_size(self, row_count: int, col_count: int, rand = False):
+        if rand:
+            data = [[random.uniform(-1, 1) for _ in range(col_count)] for _ in range(row_count)]
+        else:
+            data = [[0 * col_count] for _ in range(row_count)]
+        return Matrix(data)
+    @classmethod
+    def from_row(self, row: [int], rand = False):
+            return Matrix([row])
+    def __mul__(self, other):
+        if self.col_count != other.row_count:
+            print(f"[ERROR]: Mismatched order of Matrices {(self.row_count, self.col_count)} vs {(other.row_count, other.col_count)}")
+            exit(1)
+        res = [[0 for _ in range(other.col_count)] for _ in range(self.row_count)]
+        for i in range(self.row_count):
+            for j in range(other.col_count):
+                for k in range(self.col_count):
+                    res[i][j] += self.data[i][k] * other.data[k][j]
+        return Matrix(res)
+    def sigmoid(self):
+        if self.row_count != 1:
+            print("[ERROR] Can't apply activation function for non row matrix")
+            exit(1)
+        for i in range(self.col_count):
+            self.data[0][i] = 1 / (1 + math.e ** -self.data[0][i])
+
+class NN:
+    def __init__(self, architecture: [int], rand = False):
+        self.layers = []
+        for i in range(len(architecture) - 1):
+            self.layers.append(Matrix.from_size(architecture[i], architecture[i + 1], rand))
+    def solve(self, input: Matrix) -> Matrix:
+        temp = input
+        for layer in self.layers:
+            temp = temp * layer
+            temp.sigmoid()
+        return temp
 
 pygame.init()
 
