@@ -69,6 +69,7 @@ pygame.init()
 DISPLAY = pygame.display.set_mode((640, 480), vsync = 1)
 COLOR_WHITE = (255, 255, 255)
 COLOR_RED = (255, 0, 0)
+COLOR_GREEN = (0, 255, 0)
 COLOR_BLUE = (0, 0, 255)
 
 GRAVITY: float = -0.001
@@ -174,21 +175,25 @@ class Game:
         for agent in self.agents:
             agent.render()
 
-def player_game():
+def multiplayer_game():
     game = Game()
-    player = Agent(COLOR_RED)
-    game.add_player(player)
+    player1 = Agent(COLOR_RED)
+    player2 = Agent(COLOR_GREEN)
+    game.add_player(player1)
+    game.add_player(player2)
     running = True
     while running:
         start_time = pygame.time.get_ticks()
         DISPLAY.fill(COLOR_WHITE)
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                player.jump()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                player1.jump()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
+                player2.jump()
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
         game.render()
-        if not player.dead:
+        if not player1.dead or not player2.dead:
             game.tick()
         else:
             pygame.draw.line(DISPLAY, COLOR_RED, (0, 0), (DISPLAY.get_width(), DISPLAY.get_height()), DISPLAY.get_width() // 100)
@@ -197,4 +202,4 @@ def player_game():
         pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
     pygame.quit()
 
-player_game()
+multiplayer_game()
