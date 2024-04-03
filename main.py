@@ -1,6 +1,7 @@
 import sys
 import random
 import math
+from copy import deepcopy
 
 random.seed(1)
 
@@ -48,9 +49,15 @@ class Matrix:
             raise Exception("Can't apply activation function for non row matrix")
         for i in range(self.col_count):
             self.data[0][i] = 1 / (1 + math.e ** -self.data[0][i])
+    def mutate(self, fuzz_factor: float):
+        for row in self.data:
+            for i in range(len(row)):
+                row[i] += random.uniform(-fuzz_factor, fuzz_factor)
+                row[i] *= 1 + random.uniform(-fuzz_factor, fuzz_factor)
 
 class NN:
     def __init__(self, architecture: [int], rand = False):
+        self.arch = architecture
         self.layers = []
         self.biases = []
         for i in range(len(architecture) - 1):
@@ -63,6 +70,20 @@ class NN:
             temp = temp + bias
             temp.sigmoid()
         return temp
+    def mutate(self, fuzz_factor: float):
+        for layer in self.layers:
+            layer.mutate(fuzz_factor)
+        for bias in self.biases:
+            bias.mutate(fuzz_factor)
+    def __str__(self):
+        res = f"Arch: {self.arch} | "
+        for i, layer in enumerate(self.layers):
+            res += f"L#{i}: {layer.data}, "
+        res = res[:-1]
+        res += "| "
+        for i, bias in enumerate(self.biases):
+            res += f"B#{i}: {bias.data}, "
+        return res[:-2]
 
 pygame.init()
 
@@ -130,9 +151,11 @@ class Agent:
         self.velocity = JUMP_VELCOITY
     def render(self):
         radius = BALL_RADIUS
+        pos_x = DISPLAY.get_width() / 2
         if self.dead:
             radius /= 2
-        pygame.draw.circle(DISPLAY, self.color, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), lerp(radius, 0, 1, 0, DISPLAY.get_width()))
+            pos_x = 0
+        pygame.draw.circle(DISPLAY, self.color, (pos_x, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), lerp(radius, 0, 1, 0, DISPLAY.get_width()))
     def kill(self):
         self.dead = True
 
@@ -224,7 +247,7 @@ def ai_gym(networks: [NN]) -> NN:
         DISPLAY.fill(COLOR_WHITE)
         next_obstacle_coords = game.next_obstacle_coords()
         for agent, network in zip(agents, networks):
-            result_matrix = network.solve(Matrix.from_row([next_obstacle_coords[0], next_obstacle_coords[1] - agent.pos]))
+            result_matrix = network.solve(Matrix.from_row([next_obstacle_coords[0], next_obstacle_coords[1] - agent.pos, agent.velocity]))
             if result_matrix.data[0][0] > 0.5:
                 agent.jump()
         game.tick()
@@ -234,5 +257,19 @@ def ai_gym(networks: [NN]) -> NN:
     scores = [agent.tick_count for agent in agents]
     return networks[scores.index(max(scores))]
 
-best_network = ai_gym([NN([2, 6, 4, 1], rand=True) for _ in range(100)])
-print("Best network:", [layer.data for layer in best_network.layers], [bias.data for bias in best_network.biases])
+GENERATION_SIZE = 200
+parent = [NN([3, 6, 4, 1], rand=True) for _ in range(GENERATION_SIZE)]
+gen_count = 1
+while True:
+    best_network = ai_gym(parent)
+    print(f"Best network at gen#{gen_count}: {best_network}")
+    next_generation = [deepcopy(best_network) for _ in range(GENERATION_SIZE - 1)]
+    # Minor mutations
+    for child in next_generation[:GENERATION_SIZE // 2]:
+        child.mutate(max(0.05 / gen_count, 0.005))
+    # Wacky weirdos
+    for child in next_generation[GENERATION_SIZE // 2:]:
+        child.mutate(0.1)
+    next_generation.append(best_network)
+    parent = next_generation
+    gen_count += 1
