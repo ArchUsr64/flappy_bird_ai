@@ -2,7 +2,7 @@ import sys
 import random
 import math
 
-random.seed(0)
+random.seed(1)
 
 # Disables logs leaking from pygame
 sys.stdout = None
@@ -129,7 +129,10 @@ class Agent:
     def jump(self):
         self.velocity = JUMP_VELCOITY
     def render(self):
-        pygame.draw.circle(DISPLAY, self.color, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), lerp(BALL_RADIUS, 0, 1, 0, DISPLAY.get_width()))
+        radius = BALL_RADIUS
+        if self.dead:
+            radius /= 2
+        pygame.draw.circle(DISPLAY, self.color, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), lerp(radius, 0, 1, 0, DISPLAY.get_width()))
     def kill(self):
         self.dead = True
 
@@ -169,6 +172,11 @@ class Game:
         while self.obstacle_positions[index] <= 0.5:
             index += 1
         return [self.obstacle_positions[index] - 0.5, self.obstacles[index].mid()]
+    def over(self) -> bool:
+        for agent in self.agents:
+            if not agent.dead:
+                return False
+        return True
     def render(self):
         for i, obstacle in enumerate(self.obstacles):
             obstacle.render(self.obstacle_positions[i])
@@ -193,7 +201,7 @@ def multiplayer_game():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
         game.render()
-        if not player1.dead or not player2.dead:
+        if not game.over():
             game.tick()
         else:
             pygame.draw.line(DISPLAY, COLOR_RED, (0, 0), (DISPLAY.get_width(), DISPLAY.get_height()), DISPLAY.get_width() // 100)
@@ -202,4 +210,29 @@ def multiplayer_game():
         pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
     pygame.quit()
 
-multiplayer_game()
+# Returns the best performing network after running each in parallel
+def ai_gym(networks: [NN]) -> NN:
+    game = Game()
+    agents = [Agent((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))) for _ in range(len(networks))]
+    for agent in agents:
+        game.add_player(agent)
+    while not game.over():
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                return None
+        start_time = pygame.time.get_ticks()
+        DISPLAY.fill(COLOR_WHITE)
+        next_obstacle_coords = game.next_obstacle_coords()
+        for agent, network in zip(agents, networks):
+            result_matrix = network.solve(Matrix.from_row([next_obstacle_coords[0], next_obstacle_coords[1] - agent.pos]))
+            if result_matrix.data[0][0] > 0.5:
+                agent.jump()
+        game.tick()
+        game.render()
+        pygame.display.update()
+        pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
+    scores = [agent.tick_count for agent in agents]
+    return networks[scores.index(max(scores))]
+
+best_network = ai_gym([NN([2, 6, 4, 1], rand=True) for _ in range(100)])
+print("Best network:", [layer.data for layer in best_network.layers], [bias.data for bias in best_network.biases])
