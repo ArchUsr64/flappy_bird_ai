@@ -21,37 +21,46 @@ class Matrix:
         if rand:
             data = [[random.uniform(-1, 1) for _ in range(col_count)] for _ in range(row_count)]
         else:
-            data = [[0 * col_count] for _ in range(row_count)]
+            data = [[0] * col_count for _ in range(row_count)]
         return Matrix(data)
     @classmethod
-    def from_row(self, row: [int], rand = False):
+    def from_row(self, row: [int]):
             return Matrix([row])
     def __mul__(self, other):
         if self.col_count != other.row_count:
-            print(f"[ERROR]: Mismatched order of Matrices {(self.row_count, self.col_count)} vs {(other.row_count, other.col_count)}")
-            exit(1)
+            raise Exception(f"Mismatched order of Matrices for multiplication {(self.row_count, self.col_count)} vs {(other.row_count, other.col_count)}")
         res = [[0 for _ in range(other.col_count)] for _ in range(self.row_count)]
         for i in range(self.row_count):
             for j in range(other.col_count):
                 for k in range(self.col_count):
                     res[i][j] += self.data[i][k] * other.data[k][j]
         return Matrix(res)
+    def __add__(self, other):
+        if self.row_count != other.row_count or self.col_count != other.col_count:
+            raise Exception(f"Mismatched order of Matrices for addition {(self.row_count, self.col_count)} vs {(other.row_count, other.col_count)}")
+        res = [[0 for _ in range(self.col_count)] for _ in range(self.row_count)]
+        for i in range(self.row_count):
+            for j in range(self.col_count):
+                res[i][j] = self.data[i][j] + other.data[i][j]
+        return Matrix(res)
     def sigmoid(self):
         if self.row_count != 1:
-            print("[ERROR] Can't apply activation function for non row matrix")
-            exit(1)
+            raise Exception("Can't apply activation function for non row matrix")
         for i in range(self.col_count):
             self.data[0][i] = 1 / (1 + math.e ** -self.data[0][i])
 
 class NN:
     def __init__(self, architecture: [int], rand = False):
         self.layers = []
+        self.biases = []
         for i in range(len(architecture) - 1):
             self.layers.append(Matrix.from_size(architecture[i], architecture[i + 1], rand))
+            self.biases.append(Matrix.from_size(1, architecture[i + 1], rand))
     def solve(self, input: Matrix) -> Matrix:
         temp = input
-        for layer in self.layers:
+        for layer, bias in zip(self.layers, self.biases):
             temp = temp * layer
+            temp = temp + bias
             temp.sigmoid()
         return temp
 
