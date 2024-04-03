@@ -100,16 +100,39 @@ class Obstacle:
     def collision(self, pos) -> bool:
         return pos >= self.top or pos <= self.bottom
 
+class Agent:
+    def __init__(self, color: tuple[int, int, int]):
+        self.color = color
+        self.pos: float = 0.8
+        self.velocity: float = 0
+        self.tick_count: int = 0
+        self.dead: bool = False
+    def tick(self):
+        if not self.dead:
+            self.pos += self.velocity
+            if self.pos <= 0:
+                self.pos = 0
+                self.dead = True
+            self.velocity += GRAVITY
+            self.velocity = restrict(self.velocity, -TERMINAL_VELOCITY, TERMINAL_VELOCITY)
+            self.tick_count += 1
+    def jump(self):
+        self.velocity = JUMP_VELCOITY
+    def render(self):
+        pygame.draw.circle(DISPLAY, self.color, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), lerp(BALL_RADIUS, 0, 1, 0, DISPLAY.get_width()))
+    def kill(self):
+        self.dead = True
+
 class Game:
     def __init__(self):
         # Scales form 0 to 1
-        self.pos: float = 0.8
+        self.agents: [Agent] = []
         self.tick_count: int = 0
-        self.velocity: float = 0
-        self.dead: bool = False
         self.obstacles: [Obstacle] = [Obstacle.random() for _ in range(OBSTACLE_DENSITY)]
         obstacle_start_position = random.uniform(0.8, 1.2)
         self.obstacle_positions = [obstacle_start_position + i / OBSTACLE_DENSITY for i in range(0, OBSTACLE_DENSITY + 1)]
+    def add_player(self, player: Agent):
+        self.agents.append(player)
     def tick(self):
         # Obstacle generation
         for i in range(len(self.obstacle_positions)):
@@ -121,21 +144,16 @@ class Game:
                 self.obstacles.append(Obstacle.random())
                 self.obstacle_positions.append(1 + 1 / OBSTACLE_DENSITY)
         # Physics
-        self.pos += self.velocity
-        if self.pos <= 0:
-            self.pos = 0
-            self.dead = True
-        self.velocity += GRAVITY
-        self.velocity = restrict(self.velocity, -TERMINAL_VELOCITY, TERMINAL_VELOCITY)
+        for agent in self.agents:
+            agent.tick()
         # Collision
         for i, obstacle in enumerate(self.obstacles):
             obstacle_pos = self.obstacle_positions[i]
             if obstacle_pos >= 0.5 - BALL_RADIUS and obstacle_pos <= 0.5 + BALL_RADIUS :
-                if obstacle.collision(self.pos):
-                    self.dead = True
+                for agent in self.agents:
+                    if obstacle.collision(agent.pos):
+                        agent.kill()
         self.tick_count += 1
-    def jump(self):
-        self.velocity = JUMP_VELCOITY
     def next_obstacle_coords(self):
         index = OBSTACLE_DENSITY // 2
         while self.obstacle_positions[index] <= 0.5:
@@ -144,25 +162,30 @@ class Game:
     def render(self):
         for i, obstacle in enumerate(self.obstacles):
             obstacle.render(self.obstacle_positions[i])
-        pygame.draw.circle(DISPLAY, COLOR_RED, (DISPLAY.get_width() / 2, lerp(self.pos, 0, 1, DISPLAY.get_height(), 0)), lerp(BALL_RADIUS, 0, 1, 0, DISPLAY.get_width()))
+        for agent in self.agents:
+            agent.render()
 
-running = True
-bird = Game()
-while running:
-    start_time = pygame.time.get_ticks()
-    DISPLAY.fill(COLOR_WHITE)
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            bird.jump()
-        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
-            running = False
-    bird.render()
-    if not bird.dead:
-        bird.tick()
-    else:
-        pygame.draw.line(DISPLAY, COLOR_RED, (0, 0), (DISPLAY.get_width(), DISPLAY.get_height()), DISPLAY.get_width() // 100)
-        pygame.draw.line(DISPLAY, COLOR_RED, (DISPLAY.get_width(), 0), (0, DISPLAY.get_height()), DISPLAY.get_width() // 100)
-    pygame.display.update()
-    pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
+def player_game():
+    game = Game()
+    player = Agent(COLOR_RED)
+    game.add_player(player)
+    running = True
+    while running:
+        start_time = pygame.time.get_ticks()
+        DISPLAY.fill(COLOR_WHITE)
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                player.jump()
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                running = False
+        game.render()
+        if not player.dead:
+            game.tick()
+        else:
+            pygame.draw.line(DISPLAY, COLOR_RED, (0, 0), (DISPLAY.get_width(), DISPLAY.get_height()), DISPLAY.get_width() // 100)
+            pygame.draw.line(DISPLAY, COLOR_RED, (DISPLAY.get_width(), 0), (0, DISPLAY.get_height()), DISPLAY.get_width() // 100)
+        pygame.display.update()
+        pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
+    pygame.quit()
 
-pygame.quit()
+player_game()
