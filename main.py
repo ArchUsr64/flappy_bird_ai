@@ -127,7 +127,7 @@ class Obstacle:
     def mid(self):
         return (self.top + self.bottom) / 2
     def random():
-        return Obstacle(random.uniform(0.1, 0.6), random.uniform(0.15, 0.35))
+        return Obstacle(random.uniform(0.2, 0.5), random.uniform(0.25, 0.4))
     def collision(self, pos) -> bool:
         return pos >= self.top or pos <= self.bottom
 
@@ -165,7 +165,7 @@ class Game:
         self.agents: [Agent] = []
         self.tick_count: int = 0
         self.obstacles: [Obstacle] = [Obstacle.random() for _ in range(OBSTACLE_DENSITY)]
-        obstacle_start_position = random.uniform(0.8, 1.2)
+        obstacle_start_position = 0.8
         self.obstacle_positions = [obstacle_start_position + i / OBSTACLE_DENSITY for i in range(0, OBSTACLE_DENSITY + 1)]
     def add_player(self, player: Agent):
         self.agents.append(player)
@@ -234,7 +234,8 @@ def multiplayer_game():
     pygame.quit()
 
 # Returns the best performing network after running each in parallel
-def ai_gym(networks: [NN]) -> NN:
+def ai_gym(networks: [NN]) -> (NN, int):
+    global FPS
     game = Game()
     agents = [Agent((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))) for _ in range(len(networks))]
     for agent in agents:
@@ -243,11 +244,19 @@ def ai_gym(networks: [NN]) -> NN:
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 return None
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_EQUALS:
+                FPS *= 2
+                print(f"FPS: {FPS}")
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_MINUS:
+                FPS //= 2
+                print(f"FPS: {FPS}")
         start_time = pygame.time.get_ticks()
         DISPLAY.fill(COLOR_WHITE)
         next_obstacle_coords = game.next_obstacle_coords()
         for agent, network in zip(agents, networks):
-            result_matrix = network.solve(Matrix.from_row([next_obstacle_coords[0], next_obstacle_coords[1] - agent.pos, agent.velocity]))
+            if agent.dead:
+                continue
+            result_matrix = network.solve(Matrix.from_row([next_obstacle_coords[0], next_obstacle_coords[1] - agent.pos, agent.velocity, agent.pos]))
             if result_matrix.data[0][0] > 0.5:
                 agent.jump()
         game.tick()
@@ -255,21 +264,21 @@ def ai_gym(networks: [NN]) -> NN:
         pygame.display.update()
         pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
     scores = [agent.tick_count for agent in agents]
-    return networks[scores.index(max(scores))]
+    best_score = max(scores)
+    return (networks[scores.index(best_score)], best_score)
 
-GENERATION_SIZE = 200
-parent = [NN([3, 6, 4, 1], rand=True) for _ in range(GENERATION_SIZE)]
+GENERATION_SIZE = 1000
+parent = [NN([4, 4, 2, 1], rand=True) for _ in range(GENERATION_SIZE)]
 gen_count = 1
 while True:
-    best_network = ai_gym(parent)
-    print(f"Best network at gen#{gen_count}: {best_network}")
+    best_network, score = ai_gym(parent)
+    print(f"Best network at gen#{gen_count}:")
+    print(best_network)
+    print(f"Score: {score}")
     next_generation = [deepcopy(best_network) for _ in range(GENERATION_SIZE - 1)]
-    # Minor mutations
-    for child in next_generation[:GENERATION_SIZE // 2]:
-        child.mutate(max(0.05 / gen_count, 0.005))
-    # Wacky weirdos
-    for child in next_generation[GENERATION_SIZE // 2:]:
-        child.mutate(0.1)
+    # Dynamic mutations
+    for i, child in enumerate(next_generation):
+        child.mutate(lerp(i, 0, GENERATION_SIZE, 0, 1))
     next_generation.append(best_network)
     parent = next_generation
     gen_count += 1
