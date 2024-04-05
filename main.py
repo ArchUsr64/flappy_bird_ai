@@ -205,27 +205,22 @@ class Game:
         for agent in self.agents:
             agent.render()
 
-def multiplayer_game():
+def singleplayer():
     game = Game()
-    player1 = Agent(COLOR_RED)
-    player2 = Agent(COLOR_GREEN)
-    game.add_player(player1)
-    game.add_player(player2)
+    player = Agent(COLOR_RED)
+    game.add_player(player)
     running = True
     while running:
         start_time = pygame.time.get_ticks()
         DISPLAY.fill(COLOR_WHITE)
         for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-                player1.jump()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
-                player2.jump()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                player.jump()
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
         game.render()
-        if not game.over():
-            game.tick()
-        else:
+        game.tick()
+        if game.over():
             pygame.draw.line(DISPLAY, COLOR_RED, (0, 0), (DISPLAY.get_width(), DISPLAY.get_height()), DISPLAY.get_width() // 100)
             pygame.draw.line(DISPLAY, COLOR_RED, (DISPLAY.get_width(), 0), (0, DISPLAY.get_height()), DISPLAY.get_width() // 100)
         pygame.display.update()
