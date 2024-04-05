@@ -117,6 +117,8 @@ class Obstacle:
     def __init__(self, height, gap):
         self.top = height + gap
         self.bottom = height
+        self.gap = gap
+        self.mid = (self.top + self.bottom) / 2
     def render(self, pos_x):
         pos_x = lerp(pos_x, 0, 1, 0, DISPLAY.get_width())
         top = lerp(self.top, 0, 1, DISPLAY.get_height(), 0)
@@ -124,17 +126,15 @@ class Obstacle:
         line_width = int(lerp(BALL_RADIUS, 0, 1, 0, DISPLAY.get_width()))
         pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, 0), (pos_x, top), line_width)
         pygame.draw.line(DISPLAY, COLOR_BLUE, (pos_x, bottom), (pos_x, DISPLAY.get_height()), line_width)
-    def mid(self):
-        return (self.top + self.bottom) / 2
     def random():
-        return Obstacle(random.uniform(0.2, 0.5), random.uniform(0.25, 0.4))
+        return Obstacle(random.uniform(0.2, 0.5), random.uniform(0.15, 0.3))
     def collision(self, pos) -> bool:
         return pos >= self.top or pos <= self.bottom
 
 class Agent:
     def __init__(self, color: tuple[int, int, int]):
         self.color = color
-        self.pos: float = 0.8
+        self.pos: float = 0.5
         self.velocity: float = 0
         self.tick_count: int = 0
         self.dead: bool = False
@@ -165,8 +165,7 @@ class Game:
         self.agents: [Agent] = []
         self.tick_count: int = 0
         self.obstacles: [Obstacle] = [Obstacle.random() for _ in range(OBSTACLE_DENSITY)]
-        obstacle_start_position = 0.8
-        self.obstacle_positions = [obstacle_start_position + i / OBSTACLE_DENSITY for i in range(0, OBSTACLE_DENSITY + 1)]
+        self.obstacle_positions = [0.5 + (i + 1) / OBSTACLE_DENSITY for i in range(0, OBSTACLE_DENSITY + 1)]
     def add_player(self, player: Agent):
         self.agents.append(player)
     def tick(self):
@@ -190,11 +189,11 @@ class Game:
                     if obstacle.collision(agent.pos):
                         agent.kill()
         self.tick_count += 1
-    def next_obstacle_coords(self):
-        index = OBSTACLE_DENSITY // 2
+    def next_obstacle_index(self) -> int:
+        index = 0
         while self.obstacle_positions[index] <= 0.5:
             index += 1
-        return [self.obstacle_positions[index] - 0.5, self.obstacles[index].mid()]
+        return index
     def over(self) -> bool:
         for agent in self.agents:
             if not agent.dead:
@@ -249,14 +248,18 @@ def ai_gym(networks: [NN]) -> (NN, int):
                 print(f"FPS: {FPS}")
             if event.type == pygame.KEYDOWN and event.key == pygame.K_MINUS:
                 FPS //= 2
+                FPS = max(FPS, 1)
                 print(f"FPS: {FPS}")
         start_time = pygame.time.get_ticks()
         DISPLAY.fill(COLOR_WHITE)
-        next_obstacle_coords = game.next_obstacle_coords()
+        next_obstacle_idx = game.next_obstacle_index()
+        next_obstacle = game.obstacles[next_obstacle_idx]
+        next_obstacle_dist = game.obstacle_positions[next_obstacle_idx] - 0.5
         for agent, network in zip(agents, networks):
             if agent.dead:
                 continue
-            result_matrix = network.solve(Matrix.from_row([next_obstacle_coords[0], next_obstacle_coords[1] - agent.pos, agent.velocity, agent.pos]))
+            input = [next_obstacle.mid, next_obstacle.mid, next_obstacle_dist, agent.velocity, agent.pos]
+            result_matrix = network.solve(Matrix.from_row(input))
             if result_matrix.data[0][0] > 0.5:
                 agent.jump()
         game.tick()
@@ -268,17 +271,15 @@ def ai_gym(networks: [NN]) -> (NN, int):
     return (networks[scores.index(best_score)], best_score)
 
 GENERATION_SIZE = 1000
-parent = [NN([4, 4, 2, 1], rand=True) for _ in range(GENERATION_SIZE)]
+parent = [NN([5, 6, 4, 1], rand=True) for _ in range(GENERATION_SIZE)]
 gen_count = 1
 while True:
     best_network, score = ai_gym(parent)
-    print(f"Best network at gen#{gen_count}:")
-    print(best_network)
-    print(f"Score: {score}")
+    print(f"Best score at gen#{gen_count}: {score}")
     next_generation = [deepcopy(best_network) for _ in range(GENERATION_SIZE - 1)]
     # Dynamic mutations
     for i, child in enumerate(next_generation):
-        child.mutate(lerp(i, 0, GENERATION_SIZE, 0, 1))
+        child.mutate(lerp(i, 0, GENERATION_SIZE, 0, 0.05))
     next_generation.append(best_network)
     parent = next_generation
     gen_count += 1
