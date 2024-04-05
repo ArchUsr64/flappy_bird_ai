@@ -88,7 +88,10 @@ class NN:
 pygame.init()
 
 DISPLAY = pygame.display.set_mode((640, 480), vsync = 1)
+FONT_SIZE = 36
+FONT = pygame.freetype.Font(None, FONT_SIZE)
 COLOR_WHITE = (255, 255, 255)
+COLOR_BLACK = (0, 0, 0)
 COLOR_RED = (255, 0, 0)
 COLOR_GREEN = (0, 255, 0)
 COLOR_BLUE = (0, 0, 255)
@@ -203,7 +206,8 @@ class Game:
         for i, obstacle in enumerate(self.obstacles):
             obstacle.render(self.obstacle_positions[i])
         for agent in self.agents:
-            agent.render()
+            if not agent.dead:
+                agent.render()
 
 def singleplayer():
     game = Game()
@@ -228,7 +232,7 @@ def singleplayer():
     pygame.quit()
 
 # Returns the best performing network after running each in parallel
-def ai_gym(networks: [NN]) -> (NN, int):
+def ai_gym(networks: [NN], gen_id) -> (NN, int):
     global FPS
     game = Game()
     agents = [Agent((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))) for _ in range(len(networks))]
@@ -240,25 +244,27 @@ def ai_gym(networks: [NN]) -> (NN, int):
                 return None
             if event.type == pygame.KEYDOWN and event.key == pygame.K_EQUALS:
                 FPS *= 2
-                print(f"FPS: {FPS}")
             if event.type == pygame.KEYDOWN and event.key == pygame.K_MINUS:
                 FPS //= 2
                 FPS = max(FPS, 1)
-                print(f"FPS: {FPS}")
         start_time = pygame.time.get_ticks()
         DISPLAY.fill(COLOR_WHITE)
         next_obstacle_idx = game.next_obstacle_index()
         next_obstacle = game.obstacles[next_obstacle_idx]
         next_obstacle_dist = game.obstacle_positions[next_obstacle_idx] - 0.5
+        alive_count = 0
         for agent, network in zip(agents, networks):
             if agent.dead:
                 continue
+            alive_count += 1
             input = [next_obstacle.mid, next_obstacle.mid, next_obstacle_dist, agent.velocity, agent.pos]
             result_matrix = network.solve(Matrix.from_row(input))
             if result_matrix.data[0][0] > 0.5:
                 agent.jump()
         game.tick()
         game.render()
+        FONT.render_to(DISPLAY, (0, 0), f"Score: {game.tick_count}, FPS: {FPS}", COLOR_BLACK)
+        FONT.render_to(DISPLAY, (0, DISPLAY.get_height() - FONT_SIZE), f"Child Alive: {alive_count}, Gen#{gen_id}", COLOR_BLACK)
         pygame.display.update()
         pygame.time.delay(1000 // FPS - (pygame.time.get_ticks() - start_time))
     scores = [agent.tick_count for agent in agents]
@@ -269,7 +275,7 @@ GENERATION_SIZE = 1000
 parent = [NN([5, 6, 4, 1], rand=True) for _ in range(GENERATION_SIZE)]
 gen_count = 1
 while True:
-    best_network, score = ai_gym(parent)
+    best_network, score = ai_gym(parent, gen_count)
     print(f"Best score at gen#{gen_count}: {score}")
     next_generation = [deepcopy(best_network) for _ in range(GENERATION_SIZE - 1)]
     # Dynamic mutations
