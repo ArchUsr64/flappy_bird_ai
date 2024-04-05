@@ -280,7 +280,7 @@ while True:
     next_generation = [deepcopy(best_network) for _ in range(GENERATION_SIZE - 1)]
     # Dynamic mutations
     for i, child in enumerate(next_generation):
-        child.mutate(lerp(i, 0, GENERATION_SIZE, 0, 0.05))
+        child.mutate(lerp(i, 0, GENERATION_SIZE, 0, 0.05 / gen_count))
     next_generation.append(best_network)
     parent = next_generation
     gen_count += 1
