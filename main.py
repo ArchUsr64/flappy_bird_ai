@@ -257,7 +257,7 @@ def ai_gym(networks: [NN], gen_id) -> (NN, int):
             if agent.dead:
                 continue
             alive_count += 1
-            input = [next_obstacle.mid, next_obstacle.mid, next_obstacle_dist, agent.velocity, agent.pos]
+            input = [next_obstacle.top - agent.pos, next_obstacle.bottom - agent.pos, next_obstacle_dist, agent.velocity]
             result_matrix = network.solve(Matrix.from_row(input))
             if result_matrix.data[0][0] > 0.5:
                 agent.jump()
@@ -272,7 +272,7 @@ def ai_gym(networks: [NN], gen_id) -> (NN, int):
     return (networks[scores.index(best_score)], best_score)
 
 GENERATION_SIZE = 1000
-parent = [NN([5, 6, 4, 1], rand=True) for _ in range(GENERATION_SIZE)]
+parent = [NN([4, 6, 4, 1], rand=True) for _ in range(GENERATION_SIZE)]
 gen_count = 1
 while True:
     best_network, score = ai_gym(parent, gen_count)
